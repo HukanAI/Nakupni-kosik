@@ -405,7 +405,7 @@ function renderItems(items, recipe){
     const sd = li.querySelector('[data-act=shop]');
     if(sd) sd.onclick = ()=>{
       const it=items.find(x=>x.id===id);
-      openShopPicker(it.shop, newShop=>{ it.shop=newShop; save(); render(); });
+      openShopPicker(it.shop, newShop=>{ it.shop=newShop; consolidateCart(); save(); render(); });
     };
     li.querySelector('[data-act=edit]').onclick = ()=> openEditor(items.find(x=>x.id===id), isRecipe);
     li.querySelector('[data-act=del]').onclick = ()=>{
@@ -431,16 +431,25 @@ function sameItem(a,b){
   return a.name.trim().toLowerCase()===b.name.trim().toLowerCase()
     && (a.unit||'')===(b.unit||'') && a.shop===b.shop;
 }
+function mergeQty(ex, it){
+  const a=parseQty(ex.qty), b=parseQty(it.qty);
+  if(a!==null && b!==null) ex.qty = fmtQty(a+b);
+  else if(a===null && b!==null) ex.qty = it.qty;
+  // jinak ponech stávající množství
+}
 function addToCart(it){
   const ex = state.cart.find(x=> !x.done && sameItem(x, it));
-  if(ex){
-    const a=parseQty(ex.qty), b=parseQty(it.qty);
-    if(a!==null && b!==null) ex.qty = fmtQty(a+b);
-    else if(a===null && b!==null) ex.qty = it.qty;
-    // jinak ponech stávající množství
-  } else {
-    state.cart.push(it);
-  }
+  if(ex) mergeQty(ex, it); else state.cart.push(it);
+}
+/* sloučí případné duplicity v košíku (po změně obchodu / úpravě) */
+function consolidateCart(){
+  const out=[];
+  state.cart.forEach(it=>{
+    if(it.done){ out.push(it); return; }
+    const ex = out.find(x=> !x.done && sameItem(x, it));
+    if(ex) mergeQty(ex, it); else out.push(it);
+  });
+  state.cart = out;
 }
 
 function transferRecipe(r){
@@ -554,7 +563,7 @@ function saveEdit(){
   editCtx.it.name = name;
   editCtx.it.qty  = $('#edQty').value.trim();
   editCtx.it.unit = editCtx.unit;
-  if(!editCtx.isRecipe) editCtx.it.shop = editCtx.shop;
+  if(!editCtx.isRecipe){ editCtx.it.shop = editCtx.shop; consolidateCart(); }
   save(); closeEdit(); render();
 }
 $('#editCancel').onclick = closeEdit;

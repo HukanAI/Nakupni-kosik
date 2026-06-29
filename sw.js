@@ -1,5 +1,5 @@
 // Service worker pro offline provoz
-const CACHE = 'kosik-v6';
+const CACHE = 'kosik-v7';
 const ASSETS = [
   './',
   './index.html',
