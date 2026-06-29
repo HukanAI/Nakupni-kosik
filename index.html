@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#22c55e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Košík">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<title>Nákupní košík</title>
+<!-- v4: recepty bez obchodu, segmented jednotky, shop pill, prenos -> kosik -->
+<style>
+  :root{
+    --bg:#fef6e4; --card:#ffffff; --text:#2b2433; --muted:#9a92a6; --line:#f1ebe0;
+    --accent:#22c55e; --accent2:#16a34a; --accent-soft:#dcfce7; --accent-strong:#15803d;
+    --shadow:0 8px 24px rgba(43,36,51,.10); --radius:20px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;height:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    background:var(--bg);color:var(--text);overscroll-behavior-y:contain;-webkit-font-smoothing:antialiased;}
+  #app{max-width:560px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;
+    padding-bottom:calc(86px + env(safe-area-inset-bottom));}
+
+  header{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;
+    padding:calc(env(safe-area-inset-top) + 22px) 20px 26px;border-radius:0 0 28px 28px;
+    box-shadow:var(--shadow);position:sticky;top:0;z-index:20;transition:background .3s ease;}
+  .hd-row{display:flex;align-items:center;gap:12px;min-height:40px}
+  header h1{font-size:24px;margin:0;font-weight:800;letter-spacing:-.4px;flex:1}
+  .hd-emoji{font-size:30px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.15))}
+  .hd-sub{margin:6px 0 0;opacity:.92;font-size:13.5px;font-weight:500}
+  .back-btn{background:rgba(255,255,255,.22);border:none;color:#fff;width:40px;height:40px;border-radius:50%;
+    font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:700}
+  .progress-wrap{margin-top:16px;background:rgba(255,255,255,.28);height:9px;border-radius:99px;overflow:hidden}
+  .progress-bar{height:100%;background:#fff;border-radius:99px;width:0;transition:width .4s ease}
+
+  main{flex:1;padding:18px 16px 8px}
+
+  .bigbtn{width:100%;border:none;border-radius:16px;padding:15px;font-size:16px;font-weight:750;cursor:pointer;
+    background:var(--accent);color:#fff;box-shadow:0 6px 18px var(--accent-soft);margin-bottom:16px;display:flex;
+    align-items:center;justify-content:center;gap:8px;transition:transform .12s}
+  .bigbtn:active{transform:scale(.98)}
+
+  .addcard{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px;margin-bottom:18px}
+  .addrow{display:flex;gap:8px;align-items:center}
+  .addrow + .addrow{margin-top:9px}
+  .addrow input{border:none;background:var(--line);border-radius:14px;padding:13px 14px;font-size:16px;
+    color:var(--text);font-weight:600;outline:none;min-width:0}
+  .addrow input::placeholder{color:var(--muted);font-weight:500}
+  .in-qty{width:60px;flex-shrink:0;text-align:center;padding-left:8px;padding-right:8px}
+  .in-name{flex:1}
+
+  /* segmented prepinac jednotek */
+  .seg{display:inline-flex;background:var(--line);border-radius:14px;padding:3px;gap:2px;flex-shrink:0}
+  .seg button{border:none;background:none;padding:10px 13px;border-radius:11px;font-size:14.5px;font-weight:750;
+    color:var(--muted);cursor:pointer;transition:all .15s;line-height:1}
+  .seg button.on{background:#fff;color:var(--accent-strong);box-shadow:0 2px 7px rgba(43,36,51,.13)}
+
+  /* moderni vyber obchodu */
+  .shoppill{flex:1;min-width:0;display:flex;align-items:center;gap:9px;background:var(--line);border:none;
+    border-radius:14px;padding:12px 14px;font-size:15px;font-weight:700;color:var(--text);cursor:pointer;transition:background .15s}
+  .shoppill:active{background:#e8e0d2}
+  .shoppill .dot{width:13px;height:13px;border-radius:50%;flex-shrink:0}
+  .shoppill .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+  .shoppill .pchev{color:var(--muted);font-size:11px;flex-shrink:0}
+
+  .add-btn{background:var(--accent);color:#fff;border:none;width:48px;height:48px;border-radius:14px;font-size:28px;
+    cursor:pointer;flex-shrink:0;margin-left:auto;display:flex;align-items:center;justify-content:center;line-height:1;
+    box-shadow:0 4px 12px var(--accent-soft);transition:transform .12s}
+  .add-btn:active{transform:scale(.9)}
+
+  .grouphd{display:flex;align-items:center;gap:9px;margin:20px 4px 10px;font-weight:800;font-size:15px}
+  .grouphd:first-of-type{margin-top:2px}
+  .grouphd .gdot{width:13px;height:13px;border-radius:50%;flex-shrink:0}
+  .grouphd .cnt{margin-left:auto;color:var(--muted);font-size:12px;font-weight:700;background:var(--card);
+    padding:3px 10px;border-radius:99px;box-shadow:var(--shadow)}
+
+  ul.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+  li.item{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:13px;display:flex;
+    align-items:center;gap:12px;animation:pop .25s ease}
+  @keyframes pop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+  .check{width:28px;height:28px;border-radius:9px;border:2.5px solid var(--ic,#cfc8d6);flex-shrink:0;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;background:#fff;transition:all .18s;font-size:18px;color:#fff;font-weight:800}
+  .check.on{background:var(--ic,#999);border-color:var(--ic,#999)}
+  .it-body{flex:1;min-width:0;cursor:pointer}
+  .it-qty{display:inline-block;background:var(--line);color:var(--text);font-weight:800;font-size:12.5px;
+    padding:2px 9px;border-radius:8px;margin-right:8px;vertical-align:middle;white-space:nowrap}
+  .it-name{font-weight:650;font-size:16.5px;vertical-align:middle;word-break:break-word}
+  li.item.done{opacity:.5}
+  li.item.done .it-name{color:var(--muted)}
+  .shopdot{width:22px;height:22px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1.5px var(--line);
+    flex-shrink:0;cursor:pointer;padding:0}
+  .del{background:none;border:none;color:var(--muted);font-size:19px;cursor:pointer;padding:4px;flex-shrink:0;
+    border-radius:8px;line-height:1}
+  .del:active{background:var(--line)}
+
+  .folder{background:var(--card);border-radius:18px;box-shadow:var(--shadow);padding:16px;display:flex;
+    align-items:center;gap:13px;cursor:pointer;animation:pop .25s ease}
+  .folder:active{transform:scale(.99)}
+  .folder-ico{width:50px;height:50px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+    font-size:26px;flex-shrink:0;background:var(--accent-soft)}
+  .folder-body{flex:1;min-width:0}
+  .folder-title{font-weight:750;font-size:17px;word-break:break-word}
+  .folder-meta{color:var(--muted);font-size:13px;margin-top:3px;font-weight:500}
+  .cartbtn{font-size:21px}
+  .chev{color:var(--muted);font-size:22px;flex-shrink:0}
+
+  .empty{text-align:center;padding:46px 24px;color:var(--muted)}
+  .empty-emoji{font-size:58px;margin-bottom:8px}
+  .empty h3{margin:6px 0 4px;color:var(--text);font-size:18px}
+  .empty p{margin:0;font-size:14.5px;line-height:1.5}
+  .hint{text-align:center;color:var(--muted);font-size:12.5px;margin:18px 0 6px;font-weight:500}
+
+  nav{position:fixed;bottom:0;left:0;right:0;z-index:30;max-width:560px;margin:0 auto;background:var(--card);
+    box-shadow:0 -6px 24px rgba(43,36,51,.10);border-radius:24px 24px 0 0;display:flex;
+    padding:8px 8px calc(8px + env(safe-area-inset-bottom));}
+  .tab{flex:1;background:none;border:none;cursor:pointer;padding:8px 4px;border-radius:16px;display:flex;
+    flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-weight:700;font-size:11.5px;transition:color .2s}
+  .tab .ic{font-size:23px;transition:transform .2s}
+  .tab.active{color:var(--accent)}
+  .tab.active .ic{transform:translateY(-2px) scale(1.12)}
+
+  .modal-bg{position:fixed;inset:0;background:rgba(43,36,51,.45);z-index:50;display:none;align-items:flex-end;
+    justify-content:center;backdrop-filter:blur(2px)}
+  .modal-bg.show{display:flex;animation:fade .2s}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .modal{background:var(--card);width:100%;max-width:560px;border-radius:26px 26px 0 0;
+    padding:22px 20px calc(22px + env(safe-area-inset-bottom));animation:up .28s ease}
+  @keyframes up{from{transform:translateY(100%)}to{transform:none}}
+  .modal h3{margin:0 0 16px;font-size:19px}
+  .modal input{width:100%;border:none;background:var(--line);border-radius:14px;padding:15px;font-size:16px;
+    font-weight:600;color:var(--text);outline:none;margin-bottom:12px}
+  .modal-btns{display:flex;gap:10px;margin-top:6px}
+  .btn{flex:1;border:none;border-radius:14px;padding:15px;font-size:16px;font-weight:750;cursor:pointer}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-ghost{background:var(--line);color:var(--muted)}
+  .sheetchips{display:flex;flex-wrap:wrap;gap:9px}
+  .chip{border:2px solid var(--line);background:#fff;border-radius:99px;padding:11px 16px;font-size:14.5px;
+    font-weight:750;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:7px;transition:all .15s}
+  .chip .dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+  .chip.on{color:#fff;border-color:transparent}
+  .chip.on .dot{background:#fff !important}
+
+  .fab{position:fixed;bottom:calc(96px + env(safe-area-inset-bottom));z-index:25;
+    right:max(18px,calc(50% - 280px + 18px));width:58px;height:58px;border-radius:50%;background:var(--accent);
+    color:#fff;border:none;font-size:32px;cursor:pointer;box-shadow:0 8px 22px rgba(0,0,0,.2);display:flex;
+    align-items:center;justify-content:center;line-height:1;transition:transform .12s}
+  .fab:active{transform:scale(.9)}
+
+  .toast{position:fixed;left:50%;bottom:calc(104px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(10px);
+    background:#2b2433;color:#fff;padding:12px 20px;border-radius:14px;font-weight:650;font-size:14.5px;z-index:60;
+    box-shadow:0 8px 24px rgba(0,0,0,.28);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;
+    max-width:90%;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* editor polozky */
+  #sheetBg{z-index:56}
+  #editBody .in-name{width:100%;margin-bottom:12px}
+  #editBody .addrow{margin-bottom:14px}
+  #editBody .addrow input{margin-bottom:0}
+  #editBody .in-qty{width:64px;flex:0 0 64px}
+  #editBody .shoppill{width:100%;margin-bottom:2px}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="hdr">
+    <div class="hd-row">
+      <button class="back-btn" id="backBtn" style="display:none">‹</button>
+      <span class="hd-emoji" id="hdEmoji">🛒</span>
+      <h1 id="hdTitle">Nákupní košík</h1>
+    </div>
+    <p class="hd-sub" id="hdSub">Odškrtni, co už máš doma</p>
+    <div class="progress-wrap" id="progWrap"><div class="progress-bar" id="progBar"></div></div>
+  </header>
+  <main id="main"></main>
+</div>
+
+<button class="fab" id="fab" style="display:none">+</button>
+<div class="toast" id="toast"></div>
+
+<nav>
+  <button class="tab active" data-tab="cart"><span class="ic">🛒</span><span>Košík</span></button>
+  <button class="tab" data-tab="recipes"><span class="ic">🍳</span><span>Recepty</span></button>
+</nav>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3 id="modalTitle">Nový recept</h3>
+    <input id="modalInput" type="text" placeholder="Např. Svíčková" autocomplete="off">
+    <div class="modal-btns">
+      <button class="btn btn-ghost" id="modalCancel">Zrušit</button>
+      <button class="btn btn-primary" id="modalOk">Přidat</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="sheetBg">
+  <div class="modal">
+    <h3>Vyber obchod</h3>
+    <div class="sheetchips" id="sheetChips"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="editBg">
+  <div class="modal">
+    <h3>Upravit položku</h3>
+    <div id="editBody"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" id="editCancel">Zrušit</button>
+      <button class="btn btn-primary" id="editOk">Uložit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- DATA ---------- */
+const SHOPS = ['Kaufland','Lidl','Penny','Tesco','Albert','Jiný'];
+const SHOP_COLOR = {'Kaufland':'#ef4444','Lidl':'#2563eb','Penny':'#ec4899','Tesco':'#0ea5e9','Albert':'#16a34a','Jiný':'#8b5cf6'};
+const UNITS = ['ks','kg','g'];
+
+const THEMES = {
+  cart:    {accent:'#22c55e', accent2:'#16a34a', soft:'#dcfce7', strong:'#15803d', emoji:'🛒', title:'Nákupní košík', sub:'Odškrtni, co už máš doma'},
+  recipes: {accent:'#fb923c', accent2:'#f97316', soft:'#ffedd5', strong:'#c2410c', emoji:'🍳', title:'Recepty',        sub:'Tvoje jídla a jejich suroviny'}
+};
+
+const KEY = 'nakupni-kosik-v1';
+let state = load();
+let view = {tab:'cart', detailId:null};
+let selectedShop = state.lastShop || 'Kaufland';
+let selectedUnit = state.lastUnit || 'ks';
+
+function load(){
+  let s;
+  try{ s = JSON.parse(localStorage.getItem(KEY)); }catch(e){}
+  if(!s || !s.cart) s = {cart:[], recipes:[]};
+  (s.cart||[]).forEach(it=>{ if(!it.shop) it.shop='Jiný'; if(it.unit===undefined) it.unit=''; });
+  (s.recipes||[]).forEach(r=> (r.items||[]).forEach(it=>{ if(it.unit===undefined) it.unit=''; delete it.shop; }));
+  delete s.shops;
+  return s;
+}
+function save(){ state.lastShop=selectedShop; state.lastUnit=selectedUnit; localStorage.setItem(KEY, JSON.stringify(state)); }
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+const $ = s => document.querySelector(s);
+const main = $('#main');
+
+function applyTheme(t){
+  const r = document.documentElement.style;
+  r.setProperty('--accent', t.accent);
+  r.setProperty('--accent2', t.accent2);
+  r.setProperty('--accent-soft', t.soft);
+  r.setProperty('--accent-strong', t.strong);
+  $('#hdr').style.background = `linear-gradient(135deg,${t.accent},${t.accent2})`;
+  document.querySelector('meta[name=theme-color]').setAttribute('content', t.accent);
+}
+
+let toastT;
+function showToast(msg){
+  const el=$('#toast'); el.textContent=msg; el.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'),2200);
+}
+
+function setActiveTab(tab){
+  view.tab=tab; view.detailId=null;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+}
+
+/* ---------- RENDER ---------- */
+function render(){
+  const t = THEMES[view.tab];
+  applyTheme(t);
+
+  if(view.detailId){
+    const folder = state.recipes.find(f => f.id === view.detailId);
+    if(!folder){ view.detailId=null; return render(); }
+    $('#backBtn').style.display='flex';
+    $('#hdEmoji').style.display='none';
+    $('#hdTitle').textContent = folder.name;
+    $('#hdSub').textContent = 'Suroviny na tento recept';
+    $('#fab').style.display='none';
+    renderItems(folder.items, folder);
+    return;
+  }
+
+  $('#backBtn').style.display='none';
+  $('#hdEmoji').style.display='inline';
+  $('#hdEmoji').textContent = t.emoji;
+  $('#hdTitle').textContent = t.title;
+  $('#hdSub').textContent = t.sub;
+
+  if(view.tab==='cart'){ $('#fab').style.display='none'; renderItems(state.cart, null); }
+  else { $('#fab').style.display='flex'; renderFolders(); }
+}
+
+function progress(items){
+  const total=items.length, done=items.filter(i=>i.done).length;
+  $('#progBar').style.width = (total?Math.round(done/total*100):0)+'%';
+  $('#progWrap').style.display = total?'block':'none';
+}
+
+function qtyLabel(it){ if(!it.qty) return ''; return it.unit ? `${it.qty} ${it.unit}` : it.qty; }
+
+function segHtml(){
+  return `<div class="seg" id="segUnit">` +
+    UNITS.map(u=>`<button data-u="${u}" class="${u===selectedUnit?'on':''}">${u}</button>`).join('') +
+    `</div>`;
+}
+function shopPillHtml(){
+  return `<button class="shoppill" id="shopPill">
+    <span class="dot" style="background:${SHOP_COLOR[selectedShop]}"></span>
+    <span class="nm">${selectedShop}</span><span class="pchev">▾</span></button>`;
+}
+
+function itemHtml(it, color, withDot){
+  const q=qtyLabel(it);
+  return `
+    <li class="item ${it.done?'done':''}" data-id="${it.id}" style="--ic:${color}">
+      <div class="check ${it.done?'on':''}" data-act="toggle">${it.done?'✓':''}</div>
+      <div class="it-body" data-act="toggle">
+        ${q?`<span class="it-qty">${esc(q)}</span>`:''}
+        <span class="it-name">${esc(it.name)}</span>
+      </div>
+      ${withDot?`<button class="shopdot" data-act="shop" style="background:${color}"></button>`:''}
+      <button class="del" data-act="edit">✎</button>
+      <button class="del" data-act="del">✕</button>
+    </li>`;
+}
+
+function renderItems(items, recipe){
+  progress(items);
+  const isRecipe = !!recipe;
+  let html = '';
+
+  if(isRecipe){ html += `<button class="bigbtn" id="toCart">🛒 Přidat suroviny do košíku</button>`; }
+
+  html += `
+    <div class="addcard">
+      <div class="addrow">
+        <input class="in-qty" id="inQty" inputmode="decimal" placeholder="1" autocomplete="off">
+        <input class="in-name" id="inName" placeholder="${isRecipe?'Surovina':'Co koupit?'}" autocomplete="off">
+      </div>
+      <div class="addrow">
+        ${segHtml()}
+        ${isRecipe?'':shopPillHtml()}
+        <button class="add-btn" id="addItem">+</button>
+      </div>
+    </div>`;
+
+  if(items.length===0){
+    html += emptyHtml('🛍️','Zatím prázdno',
+      isRecipe ? 'Přidej první surovinu — množství, jednotku a název.'
+               : 'Zadej množství, jednotku, název a obchod a přidej položku.');
+  }else if(isRecipe){
+    html += '<ul class="list">';
+    items.forEach(it=> html += itemHtml(it, THEMES.recipes.accent, false));
+    html += '</ul>';
+    html += `<p class="hint">Klepnutím odškrtneš · ✕ smaže</p>`;
+  }else{
+    SHOPS.forEach(shop=>{
+      const arr = items.filter(i=>i.shop===shop);
+      if(!arr.length) return;
+      const done = arr.filter(i=>i.done).length;
+      const c = SHOP_COLOR[shop];
+      html += `<div class="grouphd"><span class="gdot" style="background:${c}"></span>${shop}
+        <span class="cnt">${done}/${arr.length}</span></div>`;
+      html += '<ul class="list">';
+      arr.forEach(it=> html += itemHtml(it, c, true));
+      html += '</ul>';
+    });
+    html += `<p class="hint">Klepnutím odškrtneš · kolečko vybere obchod · ✕ smaže</p>`;
+  }
+  main.innerHTML = html;
+
+  if(isRecipe){ $('#toCart').onclick = ()=>transferRecipe(recipe); }
+
+  // segmented jednotky
+  $('#segUnit').querySelectorAll('button').forEach(b=>{
+    b.onclick = ()=>{
+      selectedUnit = b.dataset.u; save();
+      $('#segUnit').querySelectorAll('button').forEach(x=>x.classList.toggle('on', x.dataset.u===selectedUnit));
+    };
+  });
+  // shop pill (jen kosik)
+  const pill = $('#shopPill');
+  if(pill){
+    pill.onclick = ()=> openShopPicker(selectedShop, s=>{
+      selectedShop=s; save();
+      pill.querySelector('.dot').style.background = SHOP_COLOR[s];
+      pill.querySelector('.nm').textContent = s;
+    });
+  }
+
+  $('#addItem').onclick = ()=>addItem(items, isRecipe);
+  $('#inName').addEventListener('keydown', e=>{ if(e.key==='Enter') addItem(items, isRecipe); });
+  $('#inQty').addEventListener('keydown', e=>{ if(e.key==='Enter') $('#inName').focus(); });
+
+  main.querySelectorAll('li.item').forEach(li=>{
+    const id = li.dataset.id;
+    li.querySelectorAll('[data-act=toggle]').forEach(el=>{
+      el.onclick = ()=>{ const it=items.find(x=>x.id===id); it.done=!it.done; save(); render(); };
+    });
+    const sd = li.querySelector('[data-act=shop]');
+    if(sd) sd.onclick = ()=>{
+      const it=items.find(x=>x.id===id);
+      openShopPicker(it.shop, newShop=>{ it.shop=newShop; save(); render(); });
+    };
+    li.querySelector('[data-act=edit]').onclick = ()=> openEditor(items.find(x=>x.id===id), isRecipe);
+    li.querySelector('[data-act=del]').onclick = ()=>{
+      const i=items.findIndex(x=>x.id===id); items.splice(i,1); save(); render();
+    };
+  });
+}
+
+function addItem(items, isRecipe){
+  const qty=$('#inQty').value.trim(), name=$('#inName').value.trim();
+  if(!name){ $('#inName').focus(); return; }
+  const it={id:uid(), qty, unit:selectedUnit, name, done:false};
+  if(!isRecipe) it.shop=selectedShop;
+  items.push(it);
+  save(); render();
+  const ni=$('#inName'); if(ni) ni.focus();
+}
+
+function transferRecipe(r){
+  if(!r.items.length){ showToast('Recept nemá žádné suroviny'); return; }
+  r.items.forEach(it=> state.cart.push({id:uid(), qty:it.qty, unit:it.unit, name:it.name, shop:'Jiný', done:false}));
+  save();
+  setActiveTab('cart');
+  render();
+  showToast(`Přidáno ${r.items.length} surovin do košíku 🛒`);
+}
+
+function renderFolders(){
+  $('#progWrap').style.display='none';
+  const t = THEMES.recipes;
+  let html='';
+  if(state.recipes.length===0){
+    html += emptyHtml('🍳','Žádné recepty','Klepni na velké + vpravo dole a založ první recept.');
+  }else{
+    html += '<ul class="list">';
+    state.recipes.forEach(f=>{
+      const total=f.items.length, done=f.items.filter(i=>i.done).length;
+      const meta = total?`${total} surovin${done?` · ${done} odškrtnuto`:''}`:'Zatím prázdné — klepni a přidej';
+      html += `
+        <li class="folder" data-id="${f.id}">
+          <div class="folder-ico">${t.emoji}</div>
+          <div class="folder-body">
+            <div class="folder-title">${esc(f.name)}</div>
+            <div class="folder-meta">${meta}</div>
+          </div>
+          <button class="del cartbtn" data-act="tocart" title="Do košíku">🛒</button>
+          <button class="del" data-act="renamefolder">✎</button>
+          <button class="del" data-act="delfolder">✕</button>
+          <span class="chev">›</span>
+        </li>`;
+    });
+    html += '</ul>';
+  }
+  main.innerHTML = html;
+
+  main.querySelectorAll('li.folder').forEach(li=>{
+    const id=li.dataset.id;
+    li.onclick = e=>{
+      const act=e.target.dataset.act;
+      const f=state.recipes.find(f=>f.id===id);
+      if(act==='tocart'){ transferRecipe(f); return; }
+      if(act==='renamefolder'){ openRecipeModal(f); return; }
+      if(act==='delfolder'){
+        if(confirm('Smazat recept „'+f.name+'"?')){
+          state.recipes.splice(state.recipes.findIndex(x=>x.id===id),1); save(); render();
+        }
+        return;
+      }
+      view.detailId=id; render();
+    };
+  });
+}
+
+function emptyHtml(emoji,title,text){
+  return `<div class="empty"><div class="empty-emoji">${emoji}</div><h3>${title}</h3><p>${text}</p></div>`;
+}
+function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ---------- SHEET: výběr obchodu ---------- */
+const sheetBg = $('#sheetBg');
+function openShopPicker(current, cb){
+  const wrap = $('#sheetChips');
+  wrap.innerHTML = SHOPS.map(s=>{
+    const on = s===current;
+    const st = on ? `style="background:${SHOP_COLOR[s]}"` : '';
+    return `<button class="chip ${on?'on':''}" data-shop="${s}" ${st}>
+      <span class="dot" style="background:${SHOP_COLOR[s]}"></span>${s}</button>`;
+  }).join('');
+  wrap.querySelectorAll('.chip').forEach(ch=>{
+    ch.onclick = ()=>{ sheetBg.classList.remove('show'); cb(ch.dataset.shop); };
+  });
+  sheetBg.classList.add('show');
+}
+sheetBg.onclick = e=>{ if(e.target===sheetBg) sheetBg.classList.remove('show'); };
+
+/* ---------- EDITOR POLOŽKY ---------- */
+const editBg = $('#editBg');
+let editCtx = null;
+function openEditor(it, isRecipe){
+  editCtx = {it, isRecipe, unit: it.unit || 'ks', shop: it.shop || 'Jiný'};
+  $('#editBody').innerHTML = `
+    <input id="edName" class="in-name" type="text" value="${esc(it.name)}" placeholder="Název" autocomplete="off">
+    <div class="addrow">
+      <input id="edQty" class="in-qty" inputmode="decimal" value="${esc(it.qty||'')}" placeholder="1" autocomplete="off">
+      <div class="seg" id="edSeg">${UNITS.map(u=>`<button data-u="${u}" class="${u===editCtx.unit?'on':''}">${u}</button>`).join('')}</div>
+    </div>
+    ${isRecipe?'':`<button class="shoppill" id="edShop">
+      <span class="dot" style="background:${SHOP_COLOR[editCtx.shop]}"></span>
+      <span class="nm">${editCtx.shop}</span><span class="pchev">▾</span></button>`}`;
+  $('#edSeg').querySelectorAll('button').forEach(b=>{
+    b.onclick = ()=>{ editCtx.unit=b.dataset.u;
+      $('#edSeg').querySelectorAll('button').forEach(x=>x.classList.toggle('on', x.dataset.u===editCtx.unit)); };
+  });
+  const sp=$('#edShop');
+  if(sp) sp.onclick = ()=> openShopPicker(editCtx.shop, s=>{
+    editCtx.shop=s; sp.querySelector('.dot').style.background=SHOP_COLOR[s]; sp.querySelector('.nm').textContent=s;
+  });
+  $('#edName').addEventListener('keydown', e=>{ if(e.key==='Enter') saveEdit(); });
+  editBg.classList.add('show');
+  setTimeout(()=>$('#edName').focus(),100);
+}
+function closeEdit(){ editBg.classList.remove('show'); editCtx=null; }
+function saveEdit(){
+  if(!editCtx) return;
+  const name=$('#edName').value.trim();
+  if(!name){ $('#edName').focus(); return; }
+  editCtx.it.name = name;
+  editCtx.it.qty  = $('#edQty').value.trim();
+  editCtx.it.unit = editCtx.unit;
+  if(!editCtx.isRecipe) editCtx.it.shop = editCtx.shop;
+  save(); closeEdit(); render();
+}
+$('#editCancel').onclick = closeEdit;
+$('#editOk').onclick = saveEdit;
+editBg.onclick = e=>{ if(e.target===editBg) closeEdit(); };
+
+/* ---------- MODAL: nový / přejmenovat recept ---------- */
+const modalBg = $('#modalBg');
+let recipeEdit = null;
+function openRecipeModal(recipe){
+  recipeEdit = recipe || null;
+  $('#modalTitle').textContent = recipe ? 'Přejmenovat recept' : 'Nový recept';
+  $('#modalOk').textContent = recipe ? 'Uložit' : 'Přidat';
+  $('#modalInput').value = recipe ? recipe.name : '';
+  modalBg.classList.add('show');
+  setTimeout(()=>$('#modalInput').focus(),100);
+}
+function closeModal(){ modalBg.classList.remove('show'); recipeEdit=null; }
+function saveRecipeModal(){
+  const name=$('#modalInput').value.trim();
+  if(!name){ $('#modalInput').focus(); return; }
+  if(recipeEdit){ recipeEdit.name=name; }
+  else { state.recipes.push({id:uid(), name, items:[]}); }
+  save(); closeModal(); render();
+}
+$('#fab').onclick = ()=> openRecipeModal(null);
+$('#modalCancel').onclick = closeModal;
+modalBg.onclick = e=>{ if(e.target===modalBg) closeModal(); };
+$('#modalOk').onclick = saveRecipeModal;
+$('#modalInput').addEventListener('keydown', e=>{ if(e.key==='Enter') saveRecipeModal(); });
+
+/* ---------- NAV ---------- */
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.onclick = ()=>{ setActiveTab(btn.dataset.tab); render(); };
+});
+$('#backBtn').onclick = ()=>{ view.detailId=null; render(); };
+
+render();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=> navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
