@@ -418,15 +418,34 @@ function addItem(items, isRecipe){
   const qty=$('#inQty').value.trim(), name=$('#inName').value.trim();
   if(!name){ $('#inName').focus(); return; }
   const it={id:uid(), qty, unit:selectedUnit, name, done:false};
-  if(!isRecipe) it.shop=selectedShop;
-  items.push(it);
+  if(isRecipe){ items.push(it); }
+  else { it.shop=selectedShop; addToCart(it); }
   save(); render();
   const ni=$('#inName'); if(ni) ni.focus();
 }
 
+/* sčítání stejné suroviny v košíku */
+function parseQty(s){ const n=parseFloat(String(s).replace(',','.')); return isNaN(n)?null:n; }
+function fmtQty(n){ return String(Math.round(n*1000)/1000); }
+function sameItem(a,b){
+  return a.name.trim().toLowerCase()===b.name.trim().toLowerCase()
+    && (a.unit||'')===(b.unit||'') && a.shop===b.shop;
+}
+function addToCart(it){
+  const ex = state.cart.find(x=> !x.done && sameItem(x, it));
+  if(ex){
+    const a=parseQty(ex.qty), b=parseQty(it.qty);
+    if(a!==null && b!==null) ex.qty = fmtQty(a+b);
+    else if(a===null && b!==null) ex.qty = it.qty;
+    // jinak ponech stávající množství
+  } else {
+    state.cart.push(it);
+  }
+}
+
 function transferRecipe(r){
   if(!r.items.length){ showToast('Recept nemá žádné suroviny'); return; }
-  r.items.forEach(it=> state.cart.push({id:uid(), qty:it.qty, unit:it.unit, name:it.name, shop:'Jiný', done:false}));
+  r.items.forEach(it=> addToCart({id:uid(), qty:it.qty, unit:it.unit, name:it.name, shop:'Jiný', done:false}));
   save();
   setActiveTab('cart');
   render();
